@@ -15,9 +15,11 @@ from PIL import Image, ImageTk
 from time import time, sleep
 from random import choice, uniform, randint
 from math import sin, cos, radians
-
+import numpy as np
 # gravity, act as our constant g, you can experiment by changing it
 GRAVITY = 0.05
+time_sankai=0.5
+time_yanhuachixu=1.0
 # list of color, can choose randomly or use as a queue (FIFO)
 colors = ['red', 'blue', 'yellow', 'white', 'green', 'orange', 'purple', 'seagreen','indigo', 'cornflowerblue']
 
@@ -39,7 +41,7 @@ Attributes:
 
 '''
 class part:
-    def __init__(self, cv, idx, total, explosion_speed, x=0., y=0., vx = 0., vy = 0., size=2., color = 'red', lifespan = 2, **kwargs):
+    def __init__(self, cv, idx, total, explosion_speed, x=0., y=0., vx = 0., vy = 0., size=2., color = 'red', lifespan = 2,rot=0, **kwargs):
         self.id = idx
         self.x = x
         self.y = y
@@ -54,23 +56,49 @@ class part:
             x - size, y - size, x + size,
             y + size, fill=self.color)
         self.lifespan = lifespan
-
+        self.times=int(explosion_speed/0.1)
+        self.rot=rot
     def update(self, dt):
         self.age += dt
 
         # particle expansions
-        if self.alive() and self.expand():
-            move_x = cos(radians(self.id*360/self.total))*self.initial_speed
-            move_y = sin(radians(self.id*360/self.total))*self.initial_speed
-            self.cv.move(self.cid, move_x, move_y)
-            self.vx = move_x/(float(dt)*1000)
+        # if self.alive() and self.expand():
+        #     # move_x = cos(radians(self.id*360/self.total))*self.initial_speed
+        #     # move_y = sin(radians(self.id*360/self.total))*self.initial_speed
+        #     # self.cv.move(self.cid, move_x, move_y)
+        #     # self.vx = move_x/(float(dt)*1000)
+        #     # for k in np.arange(0.1,self.initial_speed):
+        #     # k=randint(30,90)
+        #     idtemp=np.mod(self.id,self.times)
+        #     if idtemp==0:
+        #         idtemp=self.times
+        #     move_x = cos(radians((idtemp)*360/self.total+self.rot))*self.initial_speed
+        #     move_y = sin(radians((idtemp)*360/self.total+self.rot))*self.initial_speed
+        #     self.cv.move(self.cid, move_x, move_y)
+        #     self.vx = move_x/(float(dt)*1000)
+        #
+        #     self.vy = move_y / (float(dt) * 1000)
 
         # falling down in projectile motion
-        elif self.alive():
-            move_x = cos(radians(self.id*360/self.total))
-            # we technically don't need to update x, y because move will do the job
-            self.cv.move(self.cid, self.vx + move_x, self.vy+GRAVITY*dt)
-            self.vy += GRAVITY*dt
+        if self.alive():
+            # move_x = cos(radians(self.id*360/self.total))
+            # # we technically don't need to update x, y because move will do the job
+            # self.cv.move(self.cid, self.vx + move_x, self.vy+GRAVITY*dt)
+            # self.vy += GRAVITY*dt
+            # move_x = cos(radians(np.mod(self.id, self.times) * 360 / self.total))*self.initial_speed
+            # move_y = sin(radians(np.mod(self.id, self.times) * 360 / self.total))*self.initial_speed
+            idtemp=np.mod(self.id,self.times)
+            if idtemp==0:
+                idtemp=self.times
+            move_x = cos(radians((idtemp)*360/self.total+self.rot))*self.initial_speed
+            move_y = sin(radians((idtemp)*360/self.total+self.rot))*self.initial_speed
+            self.cv.move(self.cid, move_x, move_y)
+            # self.vx = move_x / (float(dt) * 1000)
+            self.vx = move_x / (float(dt) * 1000)
+
+            self.vy = move_y / (float(dt) * 1000)
+            # self.cv.size=self.cv.size*((self.lifespan-self.age)/dt)
+            # self.cid=self.cid/2
 
         # remove article if it is over the lifespan
         elif self.cid is not None:
@@ -79,7 +107,7 @@ class part:
 
     # define time frame for expansion
     def expand (self):
-        return self.age <= 1.2
+        return self.age <= time_sankai
 
     # check if particle is still alive in lifespan
     def alive(self):
@@ -103,20 +131,26 @@ def simulate(cv):
         objects = []
         x_cordi = randint(50,550)
         y_cordi = randint(50, 150)
-        speed = uniform (0.5, 1.5)          
-        size = uniform (0.5,3)
+        speed = uniform (1.5, 3.5)
+        size = uniform (0.5,2.5)
         color = choice(colors)
-        explosion_speed = uniform(0.2, 1)
-        total_particles = randint(10,50)
-        for i in range(1,total_particles):
-            r = part(cv, idx = i, total = total_particles, explosion_speed = explosion_speed, x = x_cordi, y = y_cordi, 
-                vx = speed, vy = speed, color=color, size = size, lifespan = uniform(0.6,1.75))
-            objects.append(r)
+        explosion_speed = uniform(7,10)
+        # total_particles = randint(10,50)
+        total_particles = randint(10,12)
+        # lifespan = uniform(1.6, 1.75)
+        lifespan = uniform(0.8,0.9)
+
+        for k in range(0,int(explosion_speed/0.1),4):
+            for i in range(1,total_particles):
+                rotatea = randint(-30, 30)
+                r = part(cv, idx = k*total_particles+i, total = total_particles, explosion_speed = (k+1)*0.05, x = x_cordi, y = y_cordi,
+                    vx = k, vy = k, color=color, size = size, lifespan = lifespan,rot=rotatea)
+                objects.append(r)
         explode_points.append(objects)
 
     total_time = .0
     # keeps undate within a timeframe of 1.8 second
-    while total_time < 1.8:
+    while total_time < time_yanhuachixu:
         sleep(0.01)
         tnew = time()
         t, dt = tnew, tnew - t
@@ -140,6 +174,8 @@ if __name__ == '__main__':
     image = Image.open("image.jpg")
     photo = ImageTk.PhotoImage(image)
     cv.create_image(0, 0, image=photo, anchor='nw')
+
+    # cv.create_image(0, 0, image=None, anchor='nw')
 
     cv.pack()
     root.protocol("WM_DELETE_WINDOW", close)
